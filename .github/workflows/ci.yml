@@ -95,16 +95,8 @@ jobs:
             exit 1
           fi
 
-      - name: Create Kind cluster
-        uses: helm/kind-action@v1
-        with:
-          cluster_name: test-cluster
-
       - name: Run tests
-        uses: robherley/go-test-action@v0
-        with:
-          moduleDirectory: .
-          testArguments: -coverprofile=cover.out ./...
+        run: make test
 
       - name: Go coverage comment
         uses: vladopajic/go-test-coverage@v2
