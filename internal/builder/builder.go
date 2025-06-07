@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package builder contains functions to build Kubernetes resources for MetricsServer
 package builder
 
 import (

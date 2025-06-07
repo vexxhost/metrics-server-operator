@@ -20,8 +20,8 @@ import (
 	"context"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo/v2" //nolint:revive
+	. "github.com/onsi/gomega"    //nolint:revive
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -192,7 +192,8 @@ var _ = Describe("MetricsServer Controller", func() {
 
 			By("Verifying Deployment has correct spec")
 			Expect(*deployment.Spec.Replicas).To(Equal(int32(1)))
-			Expect(deployment.Spec.Template.Spec.Containers[0].Image).To(Equal("registry.k8s.io/metrics-server/metrics-server:v0.7.2"))
+			Expect(deployment.Spec.Template.Spec.Containers[0].Image).To(
+				Equal("registry.k8s.io/metrics-server/metrics-server:v0.7.2"))
 			Expect(deployment.Spec.Template.Spec.ServiceAccountName).To(Equal(corev1alpha1.DefaultServiceAccountName))
 
 			By("Checking MetricsServer status conditions")

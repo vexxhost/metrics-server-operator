@@ -116,6 +116,10 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -158,6 +162,9 @@ jobs:
 
   test-e2e:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

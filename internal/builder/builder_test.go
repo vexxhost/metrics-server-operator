@@ -45,7 +45,8 @@ func TestBuildServiceAccount(t *testing.T) {
 	}
 
 	if sa.Labels[corev1alpha1.LabelManagedBy] != corev1alpha1.LabelManagedByValue {
-		t.Errorf("Expected managed-by label %s, got %s", corev1alpha1.LabelManagedByValue, sa.Labels[corev1alpha1.LabelManagedBy])
+		t.Errorf("Expected managed-by label %s, got %s",
+			corev1alpha1.LabelManagedByValue, sa.Labels[corev1alpha1.LabelManagedBy])
 	}
 }
 
