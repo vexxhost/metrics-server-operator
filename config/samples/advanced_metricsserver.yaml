@@ -1,0 +1,71 @@
+apiVersion: observability.vexxhost.dev/v1alpha1
+kind: MetricsServer
+metadata:
+  name: metrics-server-advanced
+  labels:
+    app.kubernetes.io/name: metrics-server
+    app.kubernetes.io/instance: metrics-server-advanced
+    app.kubernetes.io/part-of: metrics-server-operator
+spec:
+  # Advanced configuration with custom settings
+  image: "registry.k8s.io/metrics-server/metrics-server:v0.7.2"
+  replicas: 2
+  kubeletInsecureTLS: false  # Use secure TLS if your cluster supports it
+  priorityClassName: "system-cluster-critical"
+  
+  # Custom resource requirements
+  resources:
+    requests:
+      cpu: 200m
+      memory: 300Mi
+    limits:
+      cpu: 500m
+      memory: 500Mi
+  
+  # Additional command-line arguments
+  args:
+    - --metric-resolution=30s
+    - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+    - --v=2
+  
+  # Pod placement constraints
+  nodeSelector:
+    kubernetes.io/os: linux
+  
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+    - key: node.kubernetes.io/not-ready
+      operator: Exists
+      effect: NoExecute
+      tolerationSeconds: 300
+  
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: metrics-server
+            topologyKey: kubernetes.io/hostname
+  
+  # Enable additional features
+  podDisruptionBudget: true
+  serviceMonitor: false  # Set to true if Prometheus operator is installed
+  
+  # Custom labels and annotations
+  serviceLabels:
+    monitoring: "enabled"
+  
+  serviceAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "10250"
+    prometheus.io/scheme: "https"
+  
+  podLabels:
+    app.vexxhost.com/monitoring: "true"
+  
+  podAnnotations:
+    cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
