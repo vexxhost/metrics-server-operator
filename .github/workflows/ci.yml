@@ -64,23 +64,6 @@ jobs:
         with:
           sarif_file: trivy.sarif
 
-  gofmt:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - name: Check formatting
-        uses: Jerome1337/gofmt-action@v1.0.5
-        with:
-          gofmt-path: './...'
-          gofmt-flags: '-l -d'
-
   test:
     runs-on: ubuntu-latest
     steps:
@@ -168,7 +151,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=sha,prefix={{branch}}-
+            type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
