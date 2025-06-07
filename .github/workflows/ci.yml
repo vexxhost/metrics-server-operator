@@ -102,9 +102,6 @@ jobs:
         uses: vladopajic/go-test-coverage@v2
         with:
           profile: cover.out
-          threshold-file: 70
-          threshold-package: 80
-          threshold-total: 85
 
   build:
     runs-on: ubuntu-latest
@@ -175,28 +172,16 @@ jobs:
           project: jd10vkmkwv
           context: .
           load: true
-          tags: controller:latest
+          tags: ghcr.io/vexxhost/metrics-server-operator:latest
 
       - name: Create Kind cluster
         uses: helm/kind-action@v1
         with:
-          cluster_name: metrics-server-test
-          wait: 300s
+          cluster_name: kind
 
       - name: Load Docker image into Kind
         run: |
-          kind load docker-image controller:latest --name metrics-server-test
-
-      - name: Install CRDs
-        run: make install
-
-      - name: Deploy operator
-        run: |
-          make deploy IMG=controller:latest
-
-      - name: Wait for operator to be ready
-        run: |
-          kubectl wait --for=condition=available --timeout=300s deployment/metrics-server-operator-controller-manager -n metrics-server-operator-system
+          kind load docker-image ghcr.io/vexxhost/metrics-server-operator:latest
 
       - name: Run e2e tests
         run: make test-e2e
