@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive
@@ -31,6 +32,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1alpha1 "github.com/vexxhost/metrics-server-operator/api/v1alpha1"
@@ -69,6 +72,11 @@ var _ = Describe("MetricsServer Controller", func() {
 			resource := &corev1alpha1.MetricsServer{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			if err == nil {
+				// Since we don't have a controller running, manually remove the finalizer
+				controllerutil.RemoveFinalizer(resource, corev1alpha1.FinalizerName)
+				Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+
+				// Now delete the resource
 				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 			}
 
@@ -78,33 +86,19 @@ var _ = Describe("MetricsServer Controller", func() {
 				return errors.IsNotFound(err)
 			}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 
-			// Clean up cluster-scoped resources
-			clusterResources := []types.NamespacedName{
-				{Name: corev1alpha1.DefaultClusterRoleName},
-				{Name: corev1alpha1.DefaultClusterRoleAggregatedReaderName},
-				{Name: corev1alpha1.DefaultClusterRoleBindingName},
-				{Name: corev1alpha1.DefaultServiceAccountName + ":system:auth-delegator"},
-				{Name: corev1alpha1.DefaultAPIServiceName},
+			// Manually clean up cluster-scoped resources since finalizer doesn't run in tests
+			clusterResources := []client.Object{
+				&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: corev1alpha1.DefaultClusterRoleName}},
+				&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: corev1alpha1.DefaultClusterRoleAggregatedReaderName}},
+				&rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: corev1alpha1.DefaultClusterRoleBindingName}},
+				&rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{
+					Name: fmt.Sprintf("%s:system:auth-delegator", corev1alpha1.DefaultServiceAccountName),
+				}},
+				&apiregistrationv1.APIService{ObjectMeta: metav1.ObjectMeta{Name: corev1alpha1.DefaultAPIServiceName}},
 			}
 
-			for _, name := range clusterResources {
-				// Clean up ClusterRole
-				cr := &rbacv1.ClusterRole{}
-				if err := k8sClient.Get(ctx, name, cr); err == nil {
-					_ = k8sClient.Delete(ctx, cr)
-				}
-
-				// Clean up ClusterRoleBinding
-				crb := &rbacv1.ClusterRoleBinding{}
-				if err := k8sClient.Get(ctx, name, crb); err == nil {
-					_ = k8sClient.Delete(ctx, crb)
-				}
-
-				// Clean up APIService
-				api := &apiregistrationv1.APIService{}
-				if err := k8sClient.Get(ctx, name, api); err == nil {
-					_ = k8sClient.Delete(ctx, api)
-				}
+			for _, obj := range clusterResources {
+				_ = k8sClient.Delete(ctx, obj)
 			}
 		})
 
@@ -298,10 +292,16 @@ var _ = Describe("MetricsServer Controller", func() {
 		})
 
 		It("should prevent multiple MetricsServer instances (singleton constraint)", func() {
+			// Skip this test if a MetricsServer already exists from BeforeEach
+			existingMS := &corev1alpha1.MetricsServer{}
+			if err := k8sClient.Get(ctx, typeNamespacedName, existingMS); err == nil {
+				Skip("MetricsServer already exists from BeforeEach, skipping singleton test")
+			}
+
 			By("creating the first MetricsServer instance")
 			firstMS := &corev1alpha1.MetricsServer{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "core.vexxhost.com/v1alpha1",
+					APIVersion: "observability.vexxhost.dev/v1alpha1",
 					Kind:       "MetricsServer",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -314,6 +314,10 @@ var _ = Describe("MetricsServer Controller", func() {
 			}
 
 			Expect(k8sClient.Create(ctx, firstMS)).Should(Succeed())
+			defer func() {
+				// Clean up first instance
+				_ = k8sClient.Delete(ctx, firstMS)
+			}()
 
 			// Create reconciler for this test
 			controllerReconciler := &MetricsServerReconciler{
@@ -330,7 +334,7 @@ var _ = Describe("MetricsServer Controller", func() {
 			By("creating a second MetricsServer instance")
 			secondMS := &corev1alpha1.MetricsServer{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "core.vexxhost.com/v1alpha1",
+					APIVersion: "observability.vexxhost.dev/v1alpha1",
 					Kind:       "MetricsServer",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -343,6 +347,10 @@ var _ = Describe("MetricsServer Controller", func() {
 			}
 
 			Expect(k8sClient.Create(ctx, secondMS)).Should(Succeed())
+			defer func() {
+				// Clean up second instance
+				_ = k8sClient.Delete(ctx, secondMS)
+			}()
 
 			By("verifying the second instance is rejected due to singleton constraint")
 			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{

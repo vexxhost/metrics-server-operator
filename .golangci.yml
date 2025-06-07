@@ -5,15 +5,15 @@ run:
   allow-parallel-runners: true
 
 issues:
-  exclude-dirs-use-default: false
-  exclude-rules:
-    - path: "api/*"
-      linters:
-        - lll
-    - path: "internal/*"
-      linters:
-        - dupl
-        - lll
+  exclusions:
+    rules:
+      - path: "api/*"
+        linters:
+          - lll
+      - path: "internal/*"
+        linters:
+          - dupl
+          - lll
 
 linters:
   enable:
@@ -34,14 +34,12 @@ linters:
     - unconvert
     - unparam
     - unused
+  settings:
+    revive:
+      rules:
+        - name: comment-spacings
 
 formatters:
   enable:
     - gofmt
     - goimports
-
-config:
-  linters-settings:
-    revive:
-      rules:
-        - name: comment-spacings
