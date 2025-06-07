@@ -32,6 +32,10 @@ import (
 	corev1alpha1 "github.com/vexxhost/metrics-server-operator/api/v1alpha1"
 )
 
+const (
+	boolTrue = "true"
+)
+
 // BuildServiceAccount creates a ServiceAccount for MetricsServer
 func BuildServiceAccount(ms *corev1alpha1.MetricsServer) *corev1.ServiceAccount {
 	sa := &corev1.ServiceAccount{
@@ -368,9 +372,9 @@ func buildSelectorLabels(ms *corev1alpha1.MetricsServer) map[string]string {
 // buildLabelsWithAggregation creates labels for aggregated cluster roles
 func buildLabelsWithAggregation(ms *corev1alpha1.MetricsServer) map[string]string {
 	labels := buildLabels(ms)
-	labels["rbac.authorization.k8s.io/aggregate-to-view"] = "true"
-	labels["rbac.authorization.k8s.io/aggregate-to-edit"] = "true"
-	labels["rbac.authorization.k8s.io/aggregate-to-admin"] = "true"
+	labels["rbac.authorization.k8s.io/aggregate-to-view"] = boolTrue
+	labels["rbac.authorization.k8s.io/aggregate-to-edit"] = boolTrue
+	labels["rbac.authorization.k8s.io/aggregate-to-admin"] = boolTrue
 	return labels
 }
 

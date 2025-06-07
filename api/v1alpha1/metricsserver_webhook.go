@@ -37,13 +37,13 @@ var webhookClient client.Client
 func (r *MetricsServer) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	// Store the client for webhook use
 	webhookClient = mgr.GetClient()
-	
+
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-observability-vexxhost-dev-v1alpha1-metricsserver,mutating=false,failurePolicy=fail,sideEffects=None,groups=observability.vexxhost.dev,resources=metricsservers,verbs=create,versions=v1alpha1,name=vmetricsserver.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-observability-vexxhost-dev-v1alpha1-metricsserver,mutating=false,failurePolicy=fail,sideEffects=None,groups=observability.vexxhost.dev,resources=metricsservers,verbs=create,versions=v1alpha1,name=vmetricsserver.kb.io,admissionReviewVersions=v1
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *MetricsServer) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
@@ -56,7 +56,7 @@ func (r *MetricsServer) ValidateCreate(ctx context.Context, obj runtime.Object) 
 	}
 
 	// Count existing instances (excluding deleted instances)
-	var existingInstances []string
+	existingInstances := make([]string, 0, len(msList.Items))
 	for _, existingMS := range msList.Items {
 		// Skip deleted instances
 		if existingMS.GetDeletionTimestamp() != nil {

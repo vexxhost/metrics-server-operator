@@ -91,19 +91,19 @@ var _ = Describe("MetricsServer Controller", func() {
 				// Clean up ClusterRole
 				cr := &rbacv1.ClusterRole{}
 				if err := k8sClient.Get(ctx, name, cr); err == nil {
-					k8sClient.Delete(ctx, cr)
+					_ = k8sClient.Delete(ctx, cr)
 				}
 
 				// Clean up ClusterRoleBinding
 				crb := &rbacv1.ClusterRoleBinding{}
 				if err := k8sClient.Get(ctx, name, crb); err == nil {
-					k8sClient.Delete(ctx, crb)
+					_ = k8sClient.Delete(ctx, crb)
 				}
 
 				// Clean up APIService
 				api := &apiregistrationv1.APIService{}
 				if err := k8sClient.Get(ctx, name, api); err == nil {
-					k8sClient.Delete(ctx, api)
+					_ = k8sClient.Delete(ctx, api)
 				}
 			}
 		})

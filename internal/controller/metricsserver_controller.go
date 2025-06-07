@@ -548,7 +548,7 @@ func (r *MetricsServerReconciler) validateSingletonConstraint(ctx context.Contex
 	}
 
 	// Count existing instances (excluding the current one)
-	var existingInstances []string
+	existingInstances := make([]string, 0, len(msList.Items))
 	for _, ms := range msList.Items {
 		// Skip the current instance and deleted instances
 		if ms.Name == current.Name || ms.GetDeletionTimestamp() != nil {

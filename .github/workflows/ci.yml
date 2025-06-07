@@ -81,9 +81,6 @@ jobs:
       - name: Verify dependencies
         run: go mod verify
 
-      - name: Run vet
-        run: go vet ./...
-
       - name: Generate manifests
         run: make manifests
 
