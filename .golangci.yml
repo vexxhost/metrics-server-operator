@@ -2,18 +2,6 @@ version: "2"
 
 run:
   timeout: 5m
-  allow-parallel-runners: true
-
-issues:
-  exclusions:
-    rules:
-      - path: "api/*"
-        linters:
-          - lll
-      - path: "internal/*"
-        linters:
-          - dupl
-          - lll
 
 linters:
   enable:
@@ -38,6 +26,15 @@ linters:
     revive:
       rules:
         - name: comment-spacings
+  exclusions:
+    rules:
+      - path: "api/*"
+        linters:
+          - lll
+      - path: "internal/*"
+        linters:
+          - dupl
+          - lll
 
 formatters:
   enable:
