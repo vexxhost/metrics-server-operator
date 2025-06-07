@@ -20,9 +20,9 @@ jobs:
           go-version-file: go.mod
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: v1.63.4
+          version: v2.1.6
 
   gosec:
     runs-on: ubuntu-latest
@@ -95,16 +95,10 @@ jobs:
             exit 1
           fi
 
-  go-test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1
         with:
-          go-version-file: go.mod
+          cluster_name: test-cluster
 
       - name: Run tests
         uses: robherley/go-test-action@v0
@@ -112,12 +106,13 @@ jobs:
           moduleDirectory: .
           testArguments: -coverprofile=cover.out ./...
 
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
+      - name: Go coverage comment
+        uses: vladopajic/go-test-coverage@v2
         with:
-          file: ./cover.out
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
+          profile: cover.out
+          threshold-file: 70
+          threshold-package: 80
+          threshold-total: 85
 
   build:
     runs-on: ubuntu-latest
