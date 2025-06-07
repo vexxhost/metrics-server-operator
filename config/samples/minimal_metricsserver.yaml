@@ -1,0 +1,15 @@
+apiVersion: observability.vexxhost.dev/v1alpha1
+kind: MetricsServer
+metadata:
+  name: metrics-server-minimal
+  labels:
+    app.kubernetes.io/name: metrics-server
+    app.kubernetes.io/instance: metrics-server-minimal
+spec:
+  # Minimal configuration - uses all defaults
+  # This will deploy metrics-server with:
+  # - image: registry.k8s.io/metrics-server/metrics-server:v0.7.2
+  # - replicas: 1
+  # - kubeletInsecureTLS: true
+  # - priorityClassName: system-cluster-critical
+  # - default resource limits and requests
