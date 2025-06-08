@@ -59,9 +59,9 @@ func TestMetricsServerWebhook_ValidateCreate(t *testing.T) {
 			newServer: &MetricsServer{
 				ObjectMeta: metav1.ObjectMeta{Name: "new"},
 			},
-			expectError:     true,
-			errorContains:   "singleton constraint violation",
-			expectWarnings:  true,
+			expectError:    true,
+			errorContains:  "singleton constraint violation",
+			expectWarnings: true,
 		},
 		{
 			name: "deleted server exists - should pass",

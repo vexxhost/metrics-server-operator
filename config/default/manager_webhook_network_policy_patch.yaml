@@ -1,0 +1,8 @@
+- op: add
+  path: /spec/ingress/-
+  value:
+    from:
+      - namespaceSelector: {}
+    ports:
+      - protocol: TCP
+        port: 9443

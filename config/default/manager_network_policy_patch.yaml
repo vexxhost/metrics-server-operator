@@ -1,0 +1,16 @@
+# This patch updates the NetworkPolicy to allow metrics access on port 8443
+- op: replace
+  path: /spec/ingress/0/ports/0/port
+  value: 8443
+# Allow metrics access from the same namespace (for testing)
+- op: add
+  path: /spec/ingress/0/from/-
+  value:
+    namespaceSelector:
+      matchLabels:
+        control-plane: controller-manager
+# Also allow from the same namespace without labels
+- op: add
+  path: /spec/ingress/0/from/-
+  value:
+    podSelector: {}

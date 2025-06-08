@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package builder contains functions to build Kubernetes resources for MetricsServer
 package builder
 
 import (
@@ -30,6 +31,10 @@ import (
 	"k8s.io/utils/ptr"
 
 	corev1alpha1 "github.com/vexxhost/metrics-server-operator/api/v1alpha1"
+)
+
+const (
+	boolTrue = "true"
 )
 
 // BuildServiceAccount creates a ServiceAccount for MetricsServer
@@ -368,9 +373,9 @@ func buildSelectorLabels(ms *corev1alpha1.MetricsServer) map[string]string {
 // buildLabelsWithAggregation creates labels for aggregated cluster roles
 func buildLabelsWithAggregation(ms *corev1alpha1.MetricsServer) map[string]string {
 	labels := buildLabels(ms)
-	labels["rbac.authorization.k8s.io/aggregate-to-view"] = "true"
-	labels["rbac.authorization.k8s.io/aggregate-to-edit"] = "true"
-	labels["rbac.authorization.k8s.io/aggregate-to-admin"] = "true"
+	labels["rbac.authorization.k8s.io/aggregate-to-view"] = boolTrue
+	labels["rbac.authorization.k8s.io/aggregate-to-edit"] = boolTrue
+	labels["rbac.authorization.k8s.io/aggregate-to-admin"] = boolTrue
 	return labels
 }
 

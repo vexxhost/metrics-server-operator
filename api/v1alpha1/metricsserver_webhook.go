@@ -37,16 +37,17 @@ var webhookClient client.Client
 func (r *MetricsServer) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	// Store the client for webhook use
 	webhookClient = mgr.GetClient()
-	
+
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-observability-vexxhost-dev-v1alpha1-metricsserver,mutating=false,failurePolicy=fail,sideEffects=None,groups=observability.vexxhost.dev,resources=metricsservers,verbs=create,versions=v1alpha1,name=vmetricsserver.kb.io,admissionReviewVersions=v1
+//nolint:lll
+// +kubebuilder:webhook:path=/validate-observability-vexxhost-dev-v1alpha1-metricsserver,mutating=false,failurePolicy=fail,sideEffects=None,groups=observability.vexxhost.dev,resources=metricsservers,verbs=create,versions=v1alpha1,name=vmetricsserver.kb.io,admissionReviewVersions=v1
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *MetricsServer) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (r *MetricsServer) ValidateCreate(ctx context.Context, _ runtime.Object) (admission.Warnings, error) {
 	metricsserverlog.Info("validate create", "name", r.Name)
 
 	// Check for existing MetricsServer instances
@@ -56,7 +57,7 @@ func (r *MetricsServer) ValidateCreate(ctx context.Context, obj runtime.Object) 
 	}
 
 	// Count existing instances (excluding deleted instances)
-	var existingInstances []string
+	existingInstances := make([]string, 0, len(msList.Items))
 	for _, existingMS := range msList.Items {
 		// Skip deleted instances
 		if existingMS.GetDeletionTimestamp() != nil {
@@ -67,15 +68,18 @@ func (r *MetricsServer) ValidateCreate(ctx context.Context, obj runtime.Object) 
 
 	if len(existingInstances) > 0 {
 		return admission.Warnings{
-			"Only one MetricsServer instance is allowed per cluster due to APIService constraints.",
-		}, fmt.Errorf("singleton constraint violation: MetricsServer instance '%s' already exists. Only one MetricsServer is allowed per cluster due to the cluster-wide v1beta1.metrics.k8s.io APIService registration. Please delete the existing instance before creating a new one", existingInstances[0])
+				"Only one MetricsServer instance is allowed per cluster due to APIService constraints.",
+			}, fmt.Errorf("singleton constraint violation: MetricsServer instance '%s' already exists. "+
+				"Only one MetricsServer is allowed per cluster due to the cluster-wide "+
+				"v1beta1.metrics.k8s.io APIService registration. "+
+				"Please delete the existing instance before creating a new one", existingInstances[0])
 	}
 
 	return nil, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *MetricsServer) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+func (r *MetricsServer) ValidateUpdate(_ context.Context, _, _ runtime.Object) (admission.Warnings, error) {
 	metricsserverlog.Info("validate update", "name", r.Name)
 
 	// Updates to existing instances are always allowed
@@ -84,7 +88,7 @@ func (r *MetricsServer) ValidateUpdate(ctx context.Context, oldObj, newObj runti
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *MetricsServer) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (r *MetricsServer) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
 	metricsserverlog.Info("validate delete", "name", r.Name)
 
 	// Deletions are always allowed

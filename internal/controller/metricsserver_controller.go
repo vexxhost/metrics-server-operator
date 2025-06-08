@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package controller contains the MetricsServer controller implementation
 package controller
 
 import (
@@ -48,6 +49,7 @@ type MetricsServerReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+//nolint:lll // kubebuilder annotations must be on single lines
 // +kubebuilder:rbac:groups=observability.vexxhost.dev,resources=metricsservers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=observability.vexxhost.dev,resources=metricsservers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=observability.vexxhost.dev,resources=metricsservers/finalizers,verbs=update
@@ -206,10 +208,11 @@ func (r *MetricsServerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		})
 	} else {
 		meta.SetStatusCondition(&ms.Status.Conditions, metav1.Condition{
-			Type:               corev1alpha1.ConditionTypeReady,
-			Status:             metav1.ConditionFalse,
-			Reason:             corev1alpha1.ReasonDeploymentNotReady,
-			Message:            fmt.Sprintf("Deployment has %d/%d replicas ready", deployment.Status.ReadyReplicas, ms.GetReplicas()),
+			Type:   corev1alpha1.ConditionTypeReady,
+			Status: metav1.ConditionFalse,
+			Reason: corev1alpha1.ReasonDeploymentNotReady,
+			Message: fmt.Sprintf("Deployment has %d/%d replicas ready",
+				deployment.Status.ReadyReplicas, ms.GetReplicas()),
 			ObservedGeneration: ms.Generation,
 		})
 		meta.SetStatusCondition(&ms.Status.Conditions, metav1.Condition{
@@ -299,7 +302,9 @@ func (r *MetricsServerReconciler) reconcileResources(ctx context.Context, ms *co
 }
 
 // reconcileResource reconciles a namespaced resource
-func (r *MetricsServerReconciler) reconcileResource(ctx context.Context, ms *corev1alpha1.MetricsServer, obj client.Object) error {
+func (r *MetricsServerReconciler) reconcileResource(
+	ctx context.Context, ms *corev1alpha1.MetricsServer, obj client.Object,
+) error {
 	log := logf.FromContext(ctx)
 
 	// Set MetricsServer instance as the owner of the resource
@@ -335,7 +340,9 @@ func (r *MetricsServerReconciler) reconcileResource(ctx context.Context, ms *cor
 }
 
 // reconcileClusterScopedResource reconciles a cluster-scoped resource
-func (r *MetricsServerReconciler) reconcileClusterScopedResource(ctx context.Context, ms *corev1alpha1.MetricsServer, obj client.Object) error {
+func (r *MetricsServerReconciler) reconcileClusterScopedResource(
+	ctx context.Context, ms *corev1alpha1.MetricsServer, obj client.Object,
+) error {
 	log := logf.FromContext(ctx)
 
 	// Add labels to identify ownership
@@ -350,7 +357,8 @@ func (r *MetricsServerReconciler) reconcileClusterScopedResource(ctx context.Con
 	found := obj.DeepCopyObject().(client.Object)
 	err := r.Get(ctx, types.NamespacedName{Name: obj.GetName()}, found)
 	if err != nil && errors.IsNotFound(err) {
-		log.Info("Creating cluster-scoped resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
+		log.Info("Creating cluster-scoped resource",
+			"Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
 		err = r.Create(ctx, obj)
 		if err != nil {
 			return err
@@ -368,7 +376,8 @@ func (r *MetricsServerReconciler) reconcileClusterScopedResource(ctx context.Con
 
 	// Update resource if needed
 	if needsUpdate(found, obj) {
-		log.Info("Updating cluster-scoped resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
+		log.Info("Updating cluster-scoped resource",
+			"Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
 		obj.SetResourceVersion(found.GetResourceVersion())
 		err = r.Update(ctx, obj)
 		if err != nil {
@@ -450,7 +459,9 @@ func (r *MetricsServerReconciler) finalizeMetricsServer(ctx context.Context, ms 
 		&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: corev1alpha1.DefaultClusterRoleName}},
 		&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: corev1alpha1.DefaultClusterRoleAggregatedReaderName}},
 		&rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: corev1alpha1.DefaultClusterRoleBindingName}},
-		&rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("%s:system:auth-delegator", corev1alpha1.DefaultServiceAccountName)}},
+		&rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s:system:auth-delegator", corev1alpha1.DefaultServiceAccountName),
+		}},
 		&apiregistrationv1.APIService{ObjectMeta: metav1.ObjectMeta{Name: corev1alpha1.DefaultAPIServiceName}},
 	}
 
@@ -466,7 +477,8 @@ func (r *MetricsServerReconciler) finalizeMetricsServer(ctx context.Context, ms 
 		// Check if this instance owns the resource
 		labels := obj.GetLabels()
 		if labels != nil && labels[corev1alpha1.LabelInstance] == ms.Name {
-			log.Info("Deleting cluster-scoped resource", "Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
+			log.Info("Deleting cluster-scoped resource",
+				"Kind", obj.GetObjectKind().GroupVersionKind().Kind, "Name", obj.GetName())
 			if err := r.Delete(ctx, obj); err != nil && !errors.IsNotFound(err) {
 				return err
 			}
@@ -507,7 +519,9 @@ func (r *MetricsServerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 // findMetricsServerForClusterResource returns requests for MetricsServer that owns cluster-scoped resources
-func (r *MetricsServerReconciler) findMetricsServerForClusterResource(ctx context.Context, obj client.Object) []ctrl.Request {
+func (r *MetricsServerReconciler) findMetricsServerForClusterResource(
+	ctx context.Context, obj client.Object,
+) []ctrl.Request {
 	labels := obj.GetLabels()
 	if labels == nil {
 		return nil
@@ -541,14 +555,16 @@ func (r *MetricsServerReconciler) findMetricsServerForClusterResource(ctx contex
 
 // validateSingletonConstraint ensures only one MetricsServer instance exists per cluster
 // since metrics-server registers the cluster-wide v1beta1.metrics.k8s.io APIService
-func (r *MetricsServerReconciler) validateSingletonConstraint(ctx context.Context, current *corev1alpha1.MetricsServer) error {
+func (r *MetricsServerReconciler) validateSingletonConstraint(
+	ctx context.Context, current *corev1alpha1.MetricsServer,
+) error {
 	msList := &corev1alpha1.MetricsServerList{}
 	if err := r.List(ctx, msList); err != nil {
 		return fmt.Errorf("failed to list existing MetricsServer instances: %w", err)
 	}
 
 	// Count existing instances (excluding the current one)
-	var existingInstances []string
+	existingInstances := make([]string, 0, len(msList.Items))
 	for _, ms := range msList.Items {
 		// Skip the current instance and deleted instances
 		if ms.Name == current.Name || ms.GetDeletionTimestamp() != nil {
@@ -558,7 +574,8 @@ func (r *MetricsServerReconciler) validateSingletonConstraint(ctx context.Contex
 	}
 
 	if len(existingInstances) > 0 {
-		return fmt.Errorf("only one MetricsServer instance is allowed per cluster due to APIService constraints. Existing instances: %v. Please delete other instances before creating this one", existingInstances)
+		return fmt.Errorf("only one MetricsServer instance is allowed per cluster due to APIService constraints. "+
+			"Existing instances: %v. Please delete other instances before creating this one", existingInstances)
 	}
 
 	return nil

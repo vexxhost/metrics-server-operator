@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package utils contains test utilities
 package utils
 
 import (
@@ -23,8 +24,9 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
-	. "github.com/onsi/ginkgo/v2" //nolint:golint,revive
+	. "github.com/onsi/ginkgo/v2" //nolint:revive,staticcheck
 )
 
 const (
@@ -120,16 +122,42 @@ func InstallCertManager() error {
 	if _, err := Run(cmd); err != nil {
 		return err
 	}
-	// Wait for cert-manager-webhook to be ready, which can take time if cert-manager
-	// was re-installed after uninstalling on a cluster.
-	cmd = exec.Command("kubectl", "wait", "deployment.apps/cert-manager-webhook",
-		"--for", "condition=Available",
-		"--namespace", "cert-manager",
-		"--timeout", "5m",
-	)
 
-	_, err := Run(cmd)
-	return err
+	// Wait for all cert-manager deployments to be ready
+	deployments := []string{
+		"cert-manager",
+		"cert-manager-webhook",
+		"cert-manager-cainjector",
+	}
+
+	for _, deployment := range deployments {
+		cmd = exec.Command("kubectl", "wait", fmt.Sprintf("deployment.apps/%s", deployment),
+			"--for", "condition=Available",
+			"--namespace", "cert-manager",
+			"--timeout", "5m",
+		)
+		if _, err := Run(cmd); err != nil {
+			return err
+		}
+	}
+
+	// Wait for the webhook to have a valid TLS certificate
+	// This is critical to avoid x509 certificate errors
+	cmd = exec.Command("kubectl", "wait", "certificate/cert-manager-webhook-ca",
+		"--for", "condition=Ready",
+		"--namespace", "cert-manager",
+		"--timeout", "2m",
+	)
+	if _, err := Run(cmd); err != nil {
+		// If certificate doesn't exist or isn't ready, wait a bit for the webhook to initialize
+		fmt.Println("Certificate not ready, waiting for webhook initialization...")
+		time.Sleep(30 * time.Second)
+	}
+
+	// Additional wait to ensure webhook TLS is fully initialized
+	time.Sleep(10 * time.Second)
+
+	return nil
 }
 
 // IsCertManagerCRDsInstalled checks if any Cert Manager CRDs are installed
@@ -197,7 +225,7 @@ func GetProjectDir() (string, error) {
 	if err != nil {
 		return wd, err
 	}
-	wd = strings.Replace(wd, "/test/e2e", "", -1)
+	wd = strings.ReplaceAll(wd, "/test/e2e", "")
 	return wd, nil
 }
 
