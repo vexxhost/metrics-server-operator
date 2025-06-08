@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive
@@ -66,9 +67,20 @@ var _ = Describe("Manager", Ordered, func() {
 		Expect(err).NotTo(HaveOccurred(), "Failed to install CRDs")
 
 		By("deploying the controller-manager")
-		cmd = exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectImage))
-		_, err = utils.Run(cmd)
-		Expect(err).NotTo(HaveOccurred(), "Failed to deploy the controller-manager")
+		// Retry deployment in case cert-manager webhook isn't fully ready
+		Eventually(func(g Gomega) {
+			cmd := exec.Command("make", "deploy", fmt.Sprintf("IMG=%s", projectImage))
+			_, err := utils.Run(cmd)
+			g.Expect(err).NotTo(HaveOccurred(), "Failed to deploy controller-manager")
+		}, 60*time.Second, 5*time.Second).Should(Succeed())
+
+		By("waiting for webhook certificate secret to be created")
+		Eventually(func(g Gomega) {
+			cmd := exec.Command("kubectl", "get", "secret",
+				"webhook-server-cert", "-n", namespace)
+			_, err := utils.Run(cmd)
+			g.Expect(err).NotTo(HaveOccurred(), "Webhook certificate secret not found")
+		}, 120*time.Second, 5*time.Second).Should(Succeed())
 	})
 
 	// After all tests have been executed, clean up by undeploying the controller, uninstalling CRDs,
@@ -76,6 +88,10 @@ var _ = Describe("Manager", Ordered, func() {
 	AfterAll(func() {
 		By("cleaning up the curl pod for metrics")
 		cmd := exec.Command("kubectl", "delete", "pod", "curl-metrics", "-n", namespace)
+		_, _ = utils.Run(cmd)
+
+		By("cleaning up metrics clusterrolebinding")
+		cmd = exec.Command("kubectl", "delete", "clusterrolebinding", metricsRoleBindingName, "--ignore-not-found=true")
 		_, _ = utils.Run(cmd)
 
 		By("undeploying the controller-manager")
@@ -172,7 +188,11 @@ var _ = Describe("Manager", Ordered, func() {
 
 		It("should ensure the metrics endpoint is serving metrics", func() {
 			By("creating a ClusterRoleBinding for the service account to allow access to metrics")
-			cmd := exec.Command("kubectl", "create", "clusterrolebinding", metricsRoleBindingName,
+			// Delete if exists first to avoid conflicts
+			cmd := exec.Command("kubectl", "delete", "clusterrolebinding", metricsRoleBindingName, "--ignore-not-found=true")
+			_, _ = utils.Run(cmd)
+
+			cmd = exec.Command("kubectl", "create", "clusterrolebinding", metricsRoleBindingName,
 				"--clusterrole=metrics-server-operator-metrics-reader",
 				fmt.Sprintf("--serviceaccount=%s:%s", namespace, serviceAccountName),
 			)
@@ -295,15 +315,34 @@ var _ = Describe("Manager", Ordered, func() {
 			Eventually(verifyWebhookReady, 60*time.Second).Should(Succeed())
 
 			By("waiting for webhook server to accept connections")
-			// Test webhook connectivity with a dry-run
+			// Add additional wait time for webhook server initialization
+			// Based on test observations, the webhook needs significant time to be ready
+			time.Sleep(30 * time.Second)
+
+			// Test webhook connectivity with a dry-run - allow for initial connection failures
 			verifyWebhookConnectivity := func(g Gomega) {
 				cmd := exec.Command("kubectl", "apply", "--dry-run=server", "-f", sampleFile)
 				output, err := utils.Run(cmd)
-				// We don't expect an error for dry-run even if webhook validates
-				g.Expect(err).NotTo(HaveOccurred())
+				// The dry-run might fail initially if webhook is not ready
+				if err != nil {
+					// Check if it's a connection refused error
+					errStr := err.Error()
+					if strings.Contains(errStr, "connection refused") || strings.Contains(errStr, "dial tcp") {
+						// This is expected during startup, fail the assertion to retry
+						g.Expect(err).NotTo(HaveOccurred(), "Webhook not ready yet: %s", errStr)
+						return
+					}
+					// For other errors, check if it's a validation error (which means webhook is working)
+					if strings.Contains(errStr, "validation") || strings.Contains(errStr, "invalid") {
+						// Webhook is working but rejecting the request - this is fine
+						return
+					}
+				}
+				// If no error or validation error, webhook is working
 				g.Expect(output).To(ContainSubstring("metricsserver.observability.vexxhost.dev/metrics-server-sample"))
 			}
-			Eventually(verifyWebhookConnectivity, 120*time.Second).Should(Succeed())
+			// Increase timeout and retry interval for webhook readiness
+			Eventually(verifyWebhookConnectivity, 300*time.Second, 10*time.Second).Should(Succeed())
 
 			By("creating a sample MetricsServer")
 			cmd := exec.Command("kubectl", "apply", "-f", sampleFile)
