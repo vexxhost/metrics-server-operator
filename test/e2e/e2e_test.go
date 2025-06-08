@@ -261,6 +261,50 @@ var _ = Describe("Manager", Ordered, func() {
 		It("should successfully deploy and reconcile a MetricsServer instance", func() {
 			sampleFile := "config/samples/core_v1alpha1_metricsserver.yaml"
 
+			By("waiting for webhook certificate secret to be created")
+			verifyWebhookCertificate := func(g Gomega) {
+				cmd := exec.Command("kubectl", "get", "secret",
+					"webhook-server-cert", "-n", namespace)
+				_, err := utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+			}
+			Eventually(verifyWebhookCertificate, 60*time.Second).Should(Succeed())
+
+			By("waiting for controller pod to be fully ready")
+			verifyControllerReady := func(g Gomega) {
+				cmd := exec.Command("kubectl", "get", "pods",
+					"-l", "control-plane=controller-manager",
+					"-n", namespace,
+					"-o", "jsonpath={.items[0].status.conditions[?(@.type=='Ready')].status}")
+				output, err := utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(output).To(Equal("True"))
+			}
+			Eventually(verifyControllerReady, 120*time.Second).Should(Succeed())
+
+			By("waiting for webhook service to be ready")
+			verifyWebhookReady := func(g Gomega) {
+				// Check if endpoints exist
+				cmd := exec.Command("kubectl", "get", "endpoints",
+					"metrics-server-operator-webhook-service", "-n", namespace,
+					"-o", "jsonpath={.subsets[*].addresses[*].ip}")
+				output, err := utils.Run(cmd)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(output).NotTo(BeEmpty(), "Webhook endpoint has no addresses")
+			}
+			Eventually(verifyWebhookReady, 60*time.Second).Should(Succeed())
+
+			By("waiting for webhook server to accept connections")
+			// Test webhook connectivity with a dry-run
+			verifyWebhookConnectivity := func(g Gomega) {
+				cmd := exec.Command("kubectl", "apply", "--dry-run=server", "-f", sampleFile)
+				output, err := utils.Run(cmd)
+				// We don't expect an error for dry-run even if webhook validates
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(output).To(ContainSubstring("metricsserver.observability.vexxhost.dev/metrics-server-sample"))
+			}
+			Eventually(verifyWebhookConnectivity, 120*time.Second).Should(Succeed())
+
 			By("creating a sample MetricsServer")
 			cmd := exec.Command("kubectl", "apply", "-f", sampleFile)
 			_, err := utils.Run(cmd)

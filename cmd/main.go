@@ -131,6 +131,7 @@ func main() {
 	}
 
 	webhookServer := webhook.NewServer(webhook.Options{
+		Port:    9443,
 		TLSOpts: webhookTLSOpts,
 	})
 
